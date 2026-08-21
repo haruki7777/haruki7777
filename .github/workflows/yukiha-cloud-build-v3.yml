@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build and diagnose
+      - name: Build encrypt and package
         shell: powershell
         continue-on-error: true
         run: |
@@ -32,13 +32,13 @@ jobs:
             Expand-Archive $zip -DestinationPath $src -Force
             $pack=Join-Path $src 'adachi_rei'
             L "PACK=$pack"
-            Get-ChildItem -Recurse $pack | ForEach-Object { L ("PRE  {0} {1}" -f $_.FullName,$_.Length) }
+            Get-ChildItem -Recurse $pack | ForEach-Object { L ("PRE {0} {1}" -f $_.Name,$_.Length) }
 
             $tool=Join-Path $env:GITHUB_WORKSPACE 'tool'
             New-Item -ItemType Directory -Force -Path $tool | Out-Null
             $base='https://raw.githubusercontent.com/NoahKuowithme/Minecraft-bedrock-skins-persona-/main/tool%20for%20mcpe%20persona/'
             foreach($f in @('encryptor.exe','Encryptor.exe.config','LibMcCrypt.dll','Newtonsoft.Json.dll')){
-              $u=$base+$f; L "GET $u"; Invoke-WebRequest -UseBasicParsing $u -OutFile (Join-Path $tool $f)
+              Invoke-WebRequest -UseBasicParsing ($base+$f) -OutFile (Join-Path $tool $f)
             }
 
             $psi=New-Object System.Diagnostics.ProcessStartInfo
@@ -53,68 +53,38 @@ jobs:
             [void]$p.Start()
             $p.StandardInput.WriteLine($pack)
             $p.StandardInput.Close()
-            if(-not $p.WaitForExit(20000)){
-              L 'PROCESS_TIMEOUT_AFTER_20S'
-              try { $p.Kill() } catch {}
-              $p.WaitForExit()
-            }
-            $out=$p.StandardOutput.ReadToEnd()
-            $err=$p.StandardError.ReadToEnd()
+            if(-not $p.WaitForExit(20000)){ try{$p.Kill()}catch{}; throw 'encryptor timeout' }
             L "EXIT=$($p.ExitCode)"
-            L "STDOUT:`n$out"
-            L "STDERR:`n$err"
-            Get-ChildItem -Recurse $pack | ForEach-Object { L ("POST {0} {1}" -f $_.FullName,$_.Length) }
+            L ("STDOUT="+$p.StandardOutput.ReadToEnd())
+            L ("STDERR="+$p.StandardError.ReadToEnd())
+            if($p.ExitCode -ne 0){ throw 'encryptor failed' }
+            if(-not (Test-Path (Join-Path $pack 'contents.json'))){ throw 'contents.json missing' }
+            Get-ChildItem -Recurse $pack | ForEach-Object { L ("POST {0} {1}" -f $_.Name,$_.Length) }
 
-            if(Test-Path (Join-Path $pack 'contents.json')){
-              $art=Join-Path $env:GITHUB_WORKSPACE 'artifacts'
-              New-Item -ItemType Directory -Force -Path $art | Out-Null
+            $art=Join-Path $env:GITHUB_WORKSPACE 'artifacts'
+            New-Item -ItemType Directory -Force -Path $art | Out-Null
+            $expanded=Join-Path $art 'YUKIHA_V7_SAFE_4D_PACK'
+            if(Test-Path $expanded){ Remove-Item $expanded -Recurse -Force }
+            Copy-Item $pack $expanded -Recurse -Force
 
-              $expanded=Join-Path $art 'YUKIHA_V6_FIXED_PACK'
-              if(Test-Path $expanded){ Remove-Item $expanded -Recurse -Force }
-              Copy-Item $pack $expanded -Recurse -Force
-
-              $finaldir=Join-Path $art 'YUKIHA_V6_FIXED_FINAL'
-              if(Test-Path $finaldir){ Remove-Item $finaldir -Recurse -Force }
-              New-Item -ItemType Directory -Force -Path $finaldir | Out-Null
-              $cache=Join-Path $finaldir '-DBZgXOP7oQ='
-              $minimal=Join-Path $art 'YUKIHA_V6_FIXED_iOS_MINIMAL.zip'
-              if(Test-Path $minimal){ Remove-Item $minimal -Force }
-
-              $py=@'
-import sys, zipfile
-from pathlib import Path
-src=Path(sys.argv[1])
-out=Path(sys.argv[2])
-outer=Path(sys.argv[3])
-with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
-    for p in sorted(src.rglob('*')):
-        if p.is_file():
-            z.write(p,p.relative_to(src).as_posix())
-with zipfile.ZipFile(outer,'w',zipfile.ZIP_DEFLATED) as z:
-    z.write(out,'skin_packs/-DBZgXOP7oQ=')
-with zipfile.ZipFile(out,'r') as z:
-    names=z.namelist()
-    req={'manifest.json','contents.json','signatures.json','geometry.json','skins.json','skin_0.png'}
-    assert req.issubset(names), (req-set(names))
-    assert all('\\' not in n for n in names)
-print('CACHE_OK', out.stat().st_size, names)
-'@
-              $pyscript=Join-Path $env:GITHUB_WORKSPACE 'make_ios_cache.py'
-              Set-Content -Path $pyscript -Value $py -Encoding UTF8
-              python $pyscript $pack $cache $minimal | Tee-Object -FilePath $log -Append
-              if($LASTEXITCODE -ne 0){ throw 'iOS cache packaging failed' }
-
-              L ('RAW_CACHE_SHA256='+(Get-FileHash $cache -Algorithm SHA256).Hash)
-              L ('MINIMAL_SHA256='+(Get-FileHash $minimal -Algorithm SHA256).Hash)
-              L 'RESULT=SUCCESS'
-            } else {
-              L 'RESULT=FAILED_NO_CONTENTS_JSON'
-            }
+            $cache=Join-Path $art '-DBZgXOP7oQ='
+            $minimal=Join-Path $art 'YUKIHA_V7_SAFE_4D_iOS_MINIMAL.zip'
+            if(Test-Path $cache){ Remove-Item $cache -Force }
+            if(Test-Path $minimal){ Remove-Item $minimal -Force }
+            $code="import sys,zipfile,pathlib; src=pathlib.Path(sys.argv[1]); out=pathlib.Path(sys.argv[2]); outer=pathlib.Path(sys.argv[3]); z=zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED); [z.write(p,p.relative_to(src).as_posix()) for p in sorted(src.rglob('*')) if p.is_file()]; z.close(); z=zipfile.ZipFile(outer,'w',zipfile.ZIP_DEFLATED); z.write(out,'skin_packs/-DBZgXOP7oQ='); z.close()"
+            python -c $code $pack $cache $minimal
+            if($LASTEXITCODE -ne 0){ throw 'cache packaging failed' }
+            $check="import sys,zipfile,json; p=sys.argv[1]; z=zipfile.ZipFile(p); n=z.namelist(); req={'manifest.json','contents.json','signatures.json','geometry.json','skins.json','skin_0.png'}; assert req.issubset(set(n)); assert all('\\' not in x for x in n); print('CACHE_OK',len(n),n)"
+            python -c $check $cache | Tee-Object -FilePath $log -Append
+            if($LASTEXITCODE -ne 0){ throw 'cache validation failed' }
+            L ('RAW_CACHE_SHA256='+(Get-FileHash $cache -Algorithm SHA256).Hash)
+            L ('MINIMAL_SHA256='+(Get-FileHash $minimal -Algorithm SHA256).Hash)
+            L 'RESULT=SUCCESS'
           } catch {
             L ("EXCEPTION="+$_.Exception.ToString())
           }
 
-      - name: Publish log/result
+      - name: Publish result
         if: always()
         shell: powershell
         run: |
@@ -123,7 +93,7 @@ print('CACHE_OK', out.stat().st_size, names)
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add artifacts
-          git commit -m 'Publish corrected YUKIHA V6 iOS cache'
+          git commit -m 'Publish YUKIHA V7 safe 4D iOS cache'
           if($LASTEXITCODE -ne 0){ Write-Host 'No changes to commit' }
           git pull --rebase
           if($LASTEXITCODE -ne 0){ throw 'git pull --rebase failed' }
