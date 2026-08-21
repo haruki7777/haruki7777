@@ -68,6 +68,9 @@ jobs:
 
             if(Test-Path (Join-Path $pack 'contents.json')){
               New-Item -ItemType Directory -Force -Path (Join-Path $env:GITHUB_WORKSPACE 'artifacts') | Out-Null
+              $expanded=Join-Path $env:GITHUB_WORKSPACE 'artifacts\YUKIHA_V6_FIXED_PACK'
+              if(Test-Path $expanded){ Remove-Item $expanded -Recurse -Force }
+              Copy-Item $pack $expanded -Recurse -Force
               Compress-Archive -Path $pack -DestinationPath (Join-Path $env:GITHUB_WORKSPACE 'artifacts\YUKIHA_ADACHI_iOS_READY.zip') -Force
               L 'RESULT=SUCCESS'
             } else {
