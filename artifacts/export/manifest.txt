@@ -1,0 +1,4 @@
+chunks=3
+base64_length=6808
+zip_bytes=5105
+sha256=d55150b1d9c60e6910ecd3a6dcd7a5b2b780490c5817b7b1ed2011c94adb6917
