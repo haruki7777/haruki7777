@@ -4,13 +4,16 @@ on:
   workflow_dispatch:
   issues:
     types: [opened]
+  push:
+    paths:
+      - 'yukiha/source.zip.b64'
 
 permissions:
   contents: write
 
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, '[YUKIHA V3]')
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || startsWith(github.event.issue.title, '[YUKIHA V3]')
     runs-on: windows-latest
     timeout-minutes: 8
     steps:
@@ -93,7 +96,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add artifacts
-          git commit -m 'Publish YUKIHA V7 safe 4D iOS cache'
+          git commit -m 'Publish YUKIHA cloud build result'
           if($LASTEXITCODE -ne 0){ Write-Host 'No changes to commit' }
           git pull --rebase
           if($LASTEXITCODE -ne 0){ throw 'git pull --rebase failed' }
