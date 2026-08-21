@@ -14,17 +14,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Dispatch Windows YUKIHA build
+      - name: Dispatch and record Windows YUKIHA build
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run yukiha-cloud-build-v3.yml --ref main
+        run: |
+          gh workflow run yukiha-cloud-build-v3.yml --ref main
+          sleep 5
+          mkdir -p artifacts
+          echo "DISPATCHED_AT=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" > artifacts/YUKIHA_DISPATCHED.txt
+          gh run list --workflow yukiha-cloud-build-v3.yml --limit 3 --json databaseId,status,conclusion,url,createdAt >> artifacts/YUKIHA_DISPATCHED.txt
+          cat artifacts/YUKIHA_DISPATCHED.txt
       - name: Publish dispatcher marker
         run: |
-          mkdir -p artifacts
-          date -u +'%Y-%m-%dT%H:%M:%SZ' > artifacts/YUKIHA_DISPATCHED.txt
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add artifacts/YUKIHA_DISPATCHED.txt
-          git commit -m 'Mark YUKIHA v3 cloud dispatch' || true
+          git commit -m 'Record YUKIHA v3 run id' || true
           git pull --rebase
           git push
