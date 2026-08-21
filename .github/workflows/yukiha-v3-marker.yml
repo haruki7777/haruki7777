@@ -1,0 +1,20 @@
+name: YUKIHA V3 Marker
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: write
+jobs:
+  marker:
+    if: startsWith(github.event.issue.title, '[YUKIHA V3 TEST]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          mkdir -p artifacts
+          date -u +'%Y-%m-%dT%H:%M:%SZ' > artifacts/YUKIHA_V3_MARKER.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/YUKIHA_V3_MARKER.txt
+          git commit -m 'Mark YUKIHA V3 test'
+          git push
