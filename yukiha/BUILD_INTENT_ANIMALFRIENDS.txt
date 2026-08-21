@@ -1,0 +1,3 @@
+Build target: current iPhone 1st Animal Friends cache replacement.
+Expected host cache filename: -DBZgXOP7oQ=
+Expected UUID: 9a9fa850-0b5e-11ee-9a0f-a795af90f04f
