@@ -1,0 +1,19 @@
+name: YUKIHA Build Dispatcher
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    if: startsWith(github.event.issue.title, '[YUKIHA BUILD]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch Windows YUKIHA build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run yukiha-cloud-build-v2.yml --ref main
