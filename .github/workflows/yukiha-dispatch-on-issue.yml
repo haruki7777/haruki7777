@@ -6,14 +6,24 @@ on:
 
 permissions:
   actions: write
-  contents: read
+  contents: write
 
 jobs:
   dispatch:
     if: startsWith(github.event.issue.title, '[YUKIHA BUILD]')
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Dispatch Windows YUKIHA build
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run yukiha-cloud-build-v2.yml --ref main
+      - name: Publish dispatcher marker
+        run: |
+          mkdir -p artifacts
+          date -u +'%Y-%m-%dT%H:%M:%SZ' > artifacts/YUKIHA_DISPATCHED.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/YUKIHA_DISPATCHED.txt
+          git commit -m 'Mark YUKIHA cloud dispatch' || true
+          git push
