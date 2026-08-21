@@ -11,7 +11,7 @@ jobs:
   build:
     if: startsWith(github.event.issue.title, '[YUKIHA V3]')
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
 
@@ -53,9 +53,13 @@ jobs:
             [void]$p.Start()
             $p.StandardInput.WriteLine($pack)
             $p.StandardInput.Close()
+            if(-not $p.WaitForExit(20000)){
+              L 'PROCESS_TIMEOUT_AFTER_20S'
+              try { $p.Kill() } catch {}
+              $p.WaitForExit()
+            }
             $out=$p.StandardOutput.ReadToEnd()
             $err=$p.StandardError.ReadToEnd()
-            $p.WaitForExit()
             L "EXIT=$($p.ExitCode)"
             L "STDOUT:`n$out"
             L "STDERR:`n$err"
@@ -82,4 +86,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add artifacts
           git commit -m 'Publish YUKIHA v3 build result' || echo 'No changes'
+          git pull --rebase
           git push
