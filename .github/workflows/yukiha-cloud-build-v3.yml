@@ -86,6 +86,9 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add artifacts
-          git commit -m 'Publish YUKIHA v3 build result' || echo 'No changes'
+          git commit -m 'Publish YUKIHA v3 build result'
+          if($LASTEXITCODE -ne 0){ Write-Host 'No changes to commit' }
           git pull --rebase
+          if($LASTEXITCODE -ne 0){ throw 'git pull --rebase failed' }
           git push
+          if($LASTEXITCODE -ne 0){ throw 'git push failed' }
