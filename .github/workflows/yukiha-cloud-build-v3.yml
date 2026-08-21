@@ -80,6 +80,16 @@ jobs:
             $check="import sys,zipfile,json; p=sys.argv[1]; z=zipfile.ZipFile(p); n=z.namelist(); req={'manifest.json','contents.json','signatures.json','geometry.json','skins.json','skin_0.png'}; assert req.issubset(set(n)); assert all('\\' not in x for x in n); print('CACHE_OK',len(n),n)"
             python -c $check $cache | Tee-Object -FilePath $log -Append
             if($LASTEXITCODE -ne 0){ throw 'cache validation failed' }
+
+            $enc=[Convert]::ToBase64String([IO.File]::ReadAllBytes($cache))
+            $chunk=2500
+            for($i=0; $i -lt 3; $i++){
+              $start=$i*$chunk
+              $len=[Math]::Min($chunk,[Math]::Max(0,$enc.Length-$start))
+              $part=if($len -gt 0){$enc.Substring($start,$len)}else{''}
+              Set-Content -Path (Join-Path $art ("YOUNG_GRU_CACHE_B64_{0}.txt" -f ($i+1))) -Value $part -NoNewline
+            }
+            L ("CACHE_B64_LEN="+$enc.Length)
             L ('RAW_CACHE_SHA256='+(Get-FileHash $cache -Algorithm SHA256).Hash)
             L ('MINIMAL_SHA256='+(Get-FileHash $minimal -Algorithm SHA256).Hash)
             L 'RESULT=SUCCESS'
