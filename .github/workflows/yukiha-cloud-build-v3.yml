@@ -1,6 +1,7 @@
 name: YUKIHA 4D Cloud Build v3
 
 on:
+  workflow_dispatch:
   issues:
     types: [opened]
 
@@ -9,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    if: startsWith(github.event.issue.title, '[YUKIHA V3]')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, '[YUKIHA V3]')
     runs-on: windows-latest
     timeout-minutes: 8
     steps:
