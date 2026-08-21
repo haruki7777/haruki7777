@@ -1,0 +1,138 @@
+name: YUKIHA 4D iOS Build
+
+on:
+  push:
+    branches:
+      - yukiha-4d-build
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Prepare YUKIHA pack
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:GITHUB_WORKSPACE 'build'
+          $pack = Join-Path $root 'TYCS5JgTMvc='
+          New-Item -ItemType Directory -Force -Path (Join-Path $pack 'texts') | Out-Null
+
+          @'
+          {"format_version":1,"header":{"name":"1st Animal Friends","uuid":"9a9fa850-0b5e-11ee-9a0f-a795af90f04f","version":[1,0,3]},"modules":[{"type":"skin_pack","uuid":"a162eb70-0b5e-11ee-86cb-9d9dd4413780","version":[1,0,3]}]}
+          '@ | Set-Content -NoNewline -Encoding UTF8 (Join-Path $pack 'manifest.json')
+
+          @'
+          {"skins":[{"localization_name":"YukihaFox4D","geometry":"geometry.npc.alex","texture":"yukiha.png","type":"free"}],"serialize_name":"AnimalFriends","localization_name":"AnimalFriends"}
+          '@ | Set-Content -NoNewline -Encoding UTF8 (Join-Path $pack 'skins.json')
+
+          @'
+          {
+            "format_version":"1.12.0",
+            "minecraft:geometry":[{
+              "description":{"identifier":"geometry.npc.alex","visible_bounds_width":3.2,"visible_bounds_height":3.8,"visible_bounds_offset":[0,1.25,0],"texture_width":64,"texture_height":64},
+              "bones":[
+                {"name":"root","pivot":[0,0,0]},
+                {"name":"waist","parent":"root","pivot":[0,12,0]},
+                {"name":"body","parent":"waist","pivot":[0,24,0],"cubes":[{"origin":[-4,12,-2],"size":[8,12,4],"uv":[16,16]},{"origin":[-4.4,11.8,-2.4],"size":[8.8,12.4,4.8],"uv":[16,16],"inflate":0.18}]},
+                {"name":"head","parent":"body","pivot":[0,24,0],"cubes":[{"origin":[-4,24,-4],"size":[8,8,8],"uv":[0,0]},{"origin":[-4.5,23.7,-4.5],"size":[9,9,9],"uv":[32,0],"inflate":0.05}]},
+                {"name":"hat","parent":"head","pivot":[0,24,0]},
+                {"name":"leftArm","parent":"body","pivot":[5,21.5,0],"cubes":[{"origin":[4,11.5,-2],"size":[3,12,4],"uv":[32,48]}]},
+                {"name":"leftSleeve","parent":"leftArm","pivot":[5,21.5,0],"cubes":[{"origin":[3.8,11.3,-2.2],"size":[3.4,12.4,4.4],"uv":[32,48],"inflate":0.08}]},
+                {"name":"rightArm","parent":"body","pivot":[-5,21.5,0],"cubes":[{"origin":[-7,11.5,-2],"size":[3,12,4],"uv":[40,16]}]},
+                {"name":"rightSleeve","parent":"rightArm","pivot":[-5,21.5,0],"cubes":[{"origin":[-7.2,11.3,-2.2],"size":[3.4,12.4,4.4],"uv":[40,16],"inflate":0.08}]},
+                {"name":"leftLeg","parent":"root","pivot":[1.9,12,0],"cubes":[{"origin":[-0.1,0,-2],"size":[4,12,4],"uv":[0,16]}]},
+                {"name":"leftPants","parent":"leftLeg","pivot":[1.9,12,0],"cubes":[{"origin":[-0.3,-0.1,-2.2],"size":[4.4,12.2,4.4],"uv":[0,32],"inflate":0.08}]},
+                {"name":"rightLeg","parent":"root","pivot":[-1.9,12,0],"cubes":[{"origin":[-3.9,0,-2],"size":[4,12,4],"uv":[0,16]}]},
+                {"name":"rightPants","parent":"rightLeg","pivot":[-1.9,12,0],"cubes":[{"origin":[-4.1,-0.1,-2.2],"size":[4.4,12.2,4.4],"uv":[0,32],"inflate":0.08}]},
+                {"name":"jacket","parent":"body","pivot":[0,24,0],"cubes":[{"origin":[-4.6,11.6,-2.6],"size":[9.2,12.8,5.2],"uv":[16,16],"inflate":0.12}]},
+                {"name":"foxEarL","parent":"head","pivot":[2.4,31,0],"cubes":[{"origin":[1.1,31,-1.2],"size":[2.8,4.8,2.4],"uv":[48,32],"rotation":[0,0,-8],"pivot":[2.4,31,0]},{"origin":[1.7,32,-1.35],"size":[1.5,3,0.5],"uv":[48,48],"rotation":[0,0,-8],"pivot":[2.4,31,0]}]},
+                {"name":"foxEarR","parent":"head","pivot":[-2.4,31,0],"cubes":[{"origin":[-3.9,31,-1.2],"size":[2.8,4.8,2.4],"uv":[48,32],"rotation":[0,0,8],"pivot":[-2.4,31,0]},{"origin":[-3.2,32,-1.35],"size":[1.5,3,0.5],"uv":[48,48],"rotation":[0,0,8],"pivot":[-2.4,31,0]}]},
+                {"name":"hairLong","parent":"head","pivot":[0,25,3],"cubes":[{"origin":[-4.2,13,3],"size":[3.4,14,2.5],"uv":[32,0],"rotation":[4,0,3],"pivot":[-2,25,3]},{"origin":[0.8,14,3],"size":[3.4,13,2.5],"uv":[32,0],"rotation":[4,0,-3],"pivot":[2,25,3]},{"origin":[-1.8,14,4],"size":[3.6,13,2.4],"uv":[32,0],"rotation":[-2,0,0],"pivot":[0,25,4]}]},
+                {"name":"tail0","parent":"body","pivot":[0,14,2],"cubes":[{"origin":[-3.8,8,2],"size":[7.6,8,7.6],"uv":[48,32],"inflate":0.12,"rotation":[-20,0,0],"pivot":[0,14,2]}]},
+                {"name":"tail1","parent":"tail0","pivot":[0,11,8.5],"cubes":[{"origin":[-3.2,5,8],"size":[6.4,8,6.4],"uv":[48,32],"inflate":0.15,"rotation":[18,0,0],"pivot":[0,11,8.5]}]},
+                {"name":"tail2","parent":"tail1","pivot":[0,8,13],"cubes":[{"origin":[-2.6,2,13],"size":[5.2,7,5.2],"uv":[48,48],"inflate":0.15,"rotation":[20,0,0],"pivot":[0,8,13]}]}
+              ]
+            }]
+          }
+          '@ | Set-Content -NoNewline -Encoding UTF8 (Join-Path $pack 'geometry.json')
+
+          '["en_US","ko_KR"]' | Set-Content -NoNewline -Encoding UTF8 (Join-Path $pack 'texts\languages.json')
+          "skinpack.AnimalFriends=1st Animal Friends`nskin.AnimalFriends.YukihaFox4D=YUKIHA Fox 4D" | Set-Content -Encoding UTF8 (Join-Path $pack 'texts\en_US.lang')
+          "skinpack.AnimalFriends=1st Animal Friends`nskin.AnimalFriends.YukihaFox4D=YUKIHA 여우 4D" | Set-Content -Encoding UTF8 (Join-Path $pack 'texts\ko_KR.lang')
+
+          Add-Type -AssemblyName System.Drawing
+          $bmp = New-Object System.Drawing.Bitmap 64,64
+          $g = [System.Drawing.Graphics]::FromImage($bmp)
+          $g.Clear([System.Drawing.Color]::Transparent)
+          $skin=[System.Drawing.Color]::FromArgb(255,245,200,178)
+          $orange=[System.Drawing.Color]::FromArgb(255,230,90,42)
+          $orange2=[System.Drawing.Color]::FromArgb(255,166,54,27)
+          $black=[System.Drawing.Color]::FromArgb(255,26,25,28)
+          $white=[System.Drawing.Color]::FromArgb(255,244,240,232)
+          $red=[System.Drawing.Color]::FromArgb(255,181,43,40)
+          function Fill($x,$y,$w,$h,$c){ $b=New-Object System.Drawing.SolidBrush($c); $g.FillRectangle($b,$x,$y,$w,$h); $b.Dispose() }
+          Fill 0 0 32 16 $skin
+          Fill 32 0 32 16 $orange
+          Fill 8 8 8 8 $skin
+          Fill 9 10 2 2 $red; Fill 13 10 2 2 $red
+          Fill 16 16 24 16 $black
+          Fill 20 20 4 12 $orange; Fill 32 20 4 12 $orange; Fill 24 18 8 8 $white
+          Fill 0 16 16 16 $black; Fill 0 32 16 16 $black
+          Fill 12 20 4 12 $orange
+          Fill 40 16 16 16 $black; Fill 32 48 16 16 $black
+          Fill 40 16 4 16 $orange; Fill 44 52 4 12 $orange
+          Fill 0 28 8 4 $white; Fill 0 44 8 4 $white
+          Fill 48 32 16 16 $orange; Fill 48 48 8 16 $white; Fill 56 48 8 16 $orange2
+          $bmp.Save((Join-Path $pack 'yukiha.png'), [System.Drawing.Imaging.ImageFormat]::Png)
+          $g.Dispose(); $bmp.Dispose()
+
+          Write-Host "Prepared pack at $pack"
+          Get-ChildItem -Recurse $pack | Select-Object FullName,Length
+
+      - name: Download persona encryptor
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tool = Join-Path $env:GITHUB_WORKSPACE 'tool'
+          New-Item -ItemType Directory -Force -Path $tool | Out-Null
+          $base='https://raw.githubusercontent.com/NoahKuowithme/Minecraft-bedrock-skins-persona-/main/tool%20for%20mcpe%20persona/'
+          $files=@('encryptor.exe','Encryptor.exe.config','LibMcCrypt.dll','Newtonsoft.Json.dll')
+          foreach($f in $files){
+            Invoke-WebRequest -UseBasicParsing ($base+$f) -OutFile (Join-Path $tool $f)
+          }
+          Get-ChildItem $tool | Select-Object Name,Length
+
+      - name: Run persona encryptor
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tool = Join-Path $env:GITHUB_WORKSPACE 'tool'
+          $pack = Join-Path $env:GITHUB_WORKSPACE 'build\TYCS5JgTMvc='
+          Push-Location $tool
+          try {
+            $pack | & .\encryptor.exe
+            $code=$LASTEXITCODE
+            Write-Host "encryptor exit code: $code"
+            if($code -ne 0){ throw "encryptor failed: $code" }
+          } finally { Pop-Location }
+          Write-Host 'Pack contents after encryption:'
+          Get-ChildItem -Recurse $pack | Select-Object FullName,Length
+          if(-not (Test-Path (Join-Path $pack 'contents.json'))){ throw 'contents.json was not generated' }
+
+      - name: Package iOS result
+        shell: powershell
+        run: |
+          $pack = Join-Path $env:GITHUB_WORKSPACE 'build\TYCS5JgTMvc='
+          $out = Join-Path $env:GITHUB_WORKSPACE 'YUKIHA_4D_iOS_READY.zip'
+          Compress-Archive -Path $pack -DestinationPath $out -Force
+          Get-Item $out | Select-Object FullName,Length
+
+      - name: Upload iOS-ready artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: YUKIHA_4D_iOS_READY
+          path: YUKIHA_4D_iOS_READY.zip
+          if-no-files-found: error
+          retention-days: 7
