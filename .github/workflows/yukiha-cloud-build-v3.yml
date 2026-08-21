@@ -67,11 +67,26 @@ jobs:
             Get-ChildItem -Recurse $pack | ForEach-Object { L ("POST {0} {1}" -f $_.FullName,$_.Length) }
 
             if(Test-Path (Join-Path $pack 'contents.json')){
-              New-Item -ItemType Directory -Force -Path (Join-Path $env:GITHUB_WORKSPACE 'artifacts') | Out-Null
-              $expanded=Join-Path $env:GITHUB_WORKSPACE 'artifacts\YUKIHA_V6_FIXED_PACK'
+              $art=Join-Path $env:GITHUB_WORKSPACE 'artifacts'
+              New-Item -ItemType Directory -Force -Path $art | Out-Null
+              $expanded=Join-Path $art 'YUKIHA_V6_FIXED_PACK'
               if(Test-Path $expanded){ Remove-Item $expanded -Recurse -Force }
               Copy-Item $pack $expanded -Recurse -Force
-              Compress-Archive -Path $pack -DestinationPath (Join-Path $env:GITHUB_WORKSPACE 'artifacts\YUKIHA_ADACHI_iOS_READY.zip') -Force
+
+              $b64dir=Join-Path $art 'YUKIHA_V6_FIXED_B64'
+              if(Test-Path $b64dir){ Remove-Item $b64dir -Recurse -Force }
+              New-Item -ItemType Directory -Force -Path $b64dir | Out-Null
+              foreach($f in @('contents.json','geometry.json','manifest.json','signatures.json','skins.json','skin_0.png')){
+                $bytes=[IO.File]::ReadAllBytes((Join-Path $pack $f))
+                [IO.File]::WriteAllText((Join-Path $b64dir ($f+'.b64')),[Convert]::ToBase64String($bytes))
+              }
+              foreach($f in @('en_US.lang','languages.json')){
+                $srcText=Join-Path (Join-Path $pack 'texts') $f
+                $bytes=[IO.File]::ReadAllBytes($srcText)
+                [IO.File]::WriteAllText((Join-Path $b64dir ('texts_'+$f+'.b64')),[Convert]::ToBase64String($bytes))
+              }
+
+              Compress-Archive -Path $pack -DestinationPath (Join-Path $art 'YUKIHA_ADACHI_iOS_READY.zip') -Force
               L 'RESULT=SUCCESS'
             } else {
               L 'RESULT=FAILED_NO_CONTENTS_JSON'
