@@ -1,0 +1,5 @@
+Host cache detected from current iPhone premium_cache: -DBZgXOP7oQ=
+Pack UUID: 9a9fa850-0b5e-11ee-9a0f-a795af90f04f
+Module UUID: a162eb70-0b5e-11ee-86cb-9d9dd4413780
+Version: 1.0.3
+Replacement must be installed as the cache archive named exactly -DBZgXOP7oQ=, not as an adachi_rei directory.
