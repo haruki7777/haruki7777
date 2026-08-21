@@ -1,0 +1,113 @@
+name: YUKIHA V6 POWER Windows Persona Build
+
+on:
+  push:
+    paths:
+      - 'YUKIHA_V6_TRIGGER.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decode V6 source and preflight
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $b64=(Get-Content 'yukiha\source.zip.b64' -Raw).Trim()
+          [IO.File]::WriteAllBytes('source.zip',[Convert]::FromBase64String($b64))
+          Expand-Archive 'source.zip' -DestinationPath 'source' -Force
+          $pack=Join-Path $env:GITHUB_WORKSPACE 'source\adachi_rei'
+          $m=Get-Content (Join-Path $pack 'manifest.json') -Raw | ConvertFrom-Json
+          $s=Get-Content (Join-Path $pack 'skins.json') -Raw | ConvertFrom-Json
+          $g=Get-Content (Join-Path $pack 'geometry.json') -Raw | ConvertFrom-Json
+          if($m.header.uuid -ne '9a9fa850-0b5e-11ee-9a0f-a795af90f04f'){ throw 'Wrong 1st Animal Friends host UUID' }
+          if($m.modules[0].uuid -ne 'a162eb70-0b5e-11ee-86cb-9d9dd4413780'){ throw 'Wrong module UUID' }
+          if($s.skins[0].geometry -ne 'geometry.npc.alex'){ throw 'Wrong geometry id' }
+          if($s.skins[0].texture -ne 'skin_0.png'){ throw 'Wrong texture path' }
+          if($g.'minecraft:geometry'[0].description.identifier -ne 'geometry.npc.alex'){ throw 'Geometry identifier mismatch' }
+          Write-Host 'V6_PREFLIGHT=PASS'
+          Get-ChildItem -Recurse $pack | Select FullName,Length
+
+      - name: Download Persona encryptor
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          New-Item tool -ItemType Directory -Force | Out-Null
+          $base='https://raw.githubusercontent.com/NoahKuowithme/Minecraft-bedrock-skins-persona-/main/tool%20for%20mcpe%20persona/'
+          foreach($f in @('encryptor.exe','Encryptor.exe.config','LibMcCrypt.dll','Newtonsoft.Json.dll')){
+            Invoke-WebRequest -UseBasicParsing ($base+$f) -OutFile (Join-Path 'tool' $f)
+          }
+
+      - name: Encrypt and strict postflight
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $pack=Join-Path $env:GITHUB_WORKSPACE 'source\adachi_rei'
+          $psi=New-Object Diagnostics.ProcessStartInfo
+          $psi.FileName=Join-Path $env:GITHUB_WORKSPACE 'tool\encryptor.exe'
+          $psi.WorkingDirectory=Join-Path $env:GITHUB_WORKSPACE 'tool'
+          $psi.UseShellExecute=$false
+          $psi.RedirectStandardInput=$true
+          $psi.RedirectStandardOutput=$true
+          $psi.RedirectStandardError=$true
+          $p=New-Object Diagnostics.Process
+          $p.StartInfo=$psi
+          [void]$p.Start()
+          $p.StandardInput.WriteLine($pack)
+          $p.StandardInput.Close()
+          if(-not $p.WaitForExit(30000)){ try{$p.Kill()}catch{}; throw 'Encryptor timeout' }
+          $out=$p.StandardOutput.ReadToEnd()
+          $err=$p.StandardError.ReadToEnd()
+          Write-Host $out
+          if($err){ Write-Host $err }
+          if($p.ExitCode -ne 0){ throw "Encryptor exit $($p.ExitCode)" }
+          foreach($f in @('manifest.json','contents.json','signatures.json','geometry.json','skins.json','skin_0.png')){
+            if(-not(Test-Path(Join-Path $pack $f))){ throw "Missing encrypted output: $f" }
+          }
+          if((Get-Item (Join-Path $pack 'signatures.json')).Length -ne 80){ throw 'Bad signatures length' }
+          $gb=[IO.File]::ReadAllBytes((Join-Path $pack 'geometry.json'))
+          if($gb[0] -eq 123){ throw 'Geometry remained plaintext' }
+          $sb=[IO.File]::ReadAllBytes((Join-Path $pack 'skins.json'))
+          if($sb[0] -eq 123){ throw 'skins.json remained plaintext' }
+          $pb=[IO.File]::ReadAllBytes((Join-Path $pack 'skin_0.png'))
+          if($pb.Length -ge 8 -and $pb[0] -eq 137 -and $pb[1] -eq 80){ throw 'Texture remained PNG plaintext' }
+          Write-Host 'V6_ENCRYPTION=PASS'
+          Get-ChildItem -Recurse $pack | Select FullName,Length
+
+      - name: Package encrypted result
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $pack=Join-Path $env:GITHUB_WORKSPACE 'source\adachi_rei'
+          New-Item artifacts -ItemType Directory -Force | Out-Null
+          $zip='artifacts\YUKIHA_V6_POWER_ENCRYPTED_PACK.zip'
+          Compress-Archive -Path $pack -DestinationPath $zip -Force
+          $sha=(Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          "RUN_ID=${{ github.run_id }}`nRESULT=SUCCESS`nHOST_UUID=9a9fa850-0b5e-11ee-9a0f-a795af90f04f`nZIP_SHA256=$sha" | Set-Content 'artifacts\YUKIHA_V6_POWER_RUN.txt' -NoNewline
+
+      - name: Upload encrypted pack artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: YUKIHA_V6_POWER_ENCRYPTED
+          path: artifacts/YUKIHA_V6_POWER_ENCRYPTED_PACK.zip
+          if-no-files-found: error
+
+      - name: Publish run marker and encrypted pack
+        shell: powershell
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/YUKIHA_V6_POWER_RUN.txt artifacts/YUKIHA_V6_POWER_ENCRYPTED_PACK.zip
+          git commit -m 'Publish YUKIHA V6 POWER encrypted build [skip ci]'
+          if($LASTEXITCODE -ne 0){ throw 'Commit failed' }
+          git pull --rebase
+          if($LASTEXITCODE -ne 0){ throw 'Pull failed' }
+          git push
+          if($LASTEXITCODE -ne 0){ throw 'Push failed' }
