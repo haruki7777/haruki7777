@@ -17,7 +17,7 @@ jobs:
       - name: Dispatch Windows YUKIHA build
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run yukiha-cloud-build-v2.yml --ref main
+        run: gh workflow run yukiha-cloud-build-v3.yml --ref main
       - name: Publish dispatcher marker
         run: |
           mkdir -p artifacts
@@ -25,5 +25,6 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add artifacts/YUKIHA_DISPATCHED.txt
-          git commit -m 'Mark YUKIHA cloud dispatch' || true
+          git commit -m 'Mark YUKIHA v3 cloud dispatch' || true
+          git pull --rebase
           git push
