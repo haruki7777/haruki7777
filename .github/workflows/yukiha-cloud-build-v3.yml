@@ -1,4 +1,4 @@
-name: YUKIHA 4D Cloud Build v3
+name: YUKIHA Adachi Cloud Build
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
             [IO.File]::WriteAllBytes($zip,[Convert]::FromBase64String($b64))
             $src=Join-Path $env:GITHUB_WORKSPACE 'source'
             Expand-Archive $zip -DestinationPath $src -Force
-            $pack=Join-Path $src 'TYCS5JgTMvc='
+            $pack=Join-Path $src 'adachi_rei'
             L "PACK=$pack"
             Get-ChildItem -Recurse $pack | ForEach-Object { L ("PRE  {0} {1}" -f $_.FullName,$_.Length) }
 
@@ -68,7 +68,7 @@ jobs:
 
             if(Test-Path (Join-Path $pack 'contents.json')){
               New-Item -ItemType Directory -Force -Path (Join-Path $env:GITHUB_WORKSPACE 'artifacts') | Out-Null
-              Compress-Archive -Path $pack -DestinationPath (Join-Path $env:GITHUB_WORKSPACE 'artifacts\YUKIHA_4D_iOS_READY.zip') -Force
+              Compress-Archive -Path $pack -DestinationPath (Join-Path $env:GITHUB_WORKSPACE 'artifacts\YUKIHA_ADACHI_iOS_READY.zip') -Force
               L 'RESULT=SUCCESS'
             } else {
               L 'RESULT=FAILED_NO_CONTENTS_JSON'
@@ -86,7 +86,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add artifacts
-          git commit -m 'Publish YUKIHA v3 build result'
+          git commit -m 'Publish YUKIHA Adachi build result'
           if($LASTEXITCODE -ne 0){ Write-Host 'No changes to commit' }
           git pull --rebase
           if($LASTEXITCODE -ne 0){ throw 'git pull --rebase failed' }
