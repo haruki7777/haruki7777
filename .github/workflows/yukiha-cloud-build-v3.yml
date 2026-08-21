@@ -40,7 +40,6 @@ jobs:
             foreach($f in @('encryptor.exe','Encryptor.exe.config','LibMcCrypt.dll','Newtonsoft.Json.dll')){
               $u=$base+$f; L "GET $u"; Invoke-WebRequest -UseBasicParsing $u -OutFile (Join-Path $tool $f)
             }
-            Get-ChildItem $tool | ForEach-Object { L ("TOOL {0} {1}" -f $_.Name,$_.Length) }
 
             $psi=New-Object System.Diagnostics.ProcessStartInfo
             $psi.FileName=Join-Path $tool 'encryptor.exe'
@@ -69,24 +68,44 @@ jobs:
             if(Test-Path (Join-Path $pack 'contents.json')){
               $art=Join-Path $env:GITHUB_WORKSPACE 'artifacts'
               New-Item -ItemType Directory -Force -Path $art | Out-Null
+
               $expanded=Join-Path $art 'YUKIHA_V6_FIXED_PACK'
               if(Test-Path $expanded){ Remove-Item $expanded -Recurse -Force }
               Copy-Item $pack $expanded -Recurse -Force
 
-              $b64dir=Join-Path $art 'YUKIHA_V6_FIXED_B64'
-              if(Test-Path $b64dir){ Remove-Item $b64dir -Recurse -Force }
-              New-Item -ItemType Directory -Force -Path $b64dir | Out-Null
-              foreach($f in @('contents.json','geometry.json','manifest.json','signatures.json','skins.json','skin_0.png')){
-                $bytes=[IO.File]::ReadAllBytes((Join-Path $pack $f))
-                [IO.File]::WriteAllText((Join-Path $b64dir ($f+'.b64')),[Convert]::ToBase64String($bytes))
-              }
-              foreach($f in @('en_US.lang','languages.json')){
-                $srcText=Join-Path (Join-Path $pack 'texts') $f
-                $bytes=[IO.File]::ReadAllBytes($srcText)
-                [IO.File]::WriteAllText((Join-Path $b64dir ('texts_'+$f+'.b64')),[Convert]::ToBase64String($bytes))
-              }
+              $finaldir=Join-Path $art 'YUKIHA_V6_FIXED_FINAL'
+              if(Test-Path $finaldir){ Remove-Item $finaldir -Recurse -Force }
+              New-Item -ItemType Directory -Force -Path $finaldir | Out-Null
+              $cache=Join-Path $finaldir '-DBZgXOP7oQ='
+              $minimal=Join-Path $art 'YUKIHA_V6_FIXED_iOS_MINIMAL.zip'
+              if(Test-Path $minimal){ Remove-Item $minimal -Force }
 
-              Compress-Archive -Path $pack -DestinationPath (Join-Path $art 'YUKIHA_ADACHI_iOS_READY.zip') -Force
+              $py=@'
+import sys, zipfile
+from pathlib import Path
+src=Path(sys.argv[1])
+out=Path(sys.argv[2])
+outer=Path(sys.argv[3])
+with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
+    for p in sorted(src.rglob('*')):
+        if p.is_file():
+            z.write(p,p.relative_to(src).as_posix())
+with zipfile.ZipFile(outer,'w',zipfile.ZIP_DEFLATED) as z:
+    z.write(out,'skin_packs/-DBZgXOP7oQ=')
+with zipfile.ZipFile(out,'r') as z:
+    names=z.namelist()
+    req={'manifest.json','contents.json','signatures.json','geometry.json','skins.json','skin_0.png'}
+    assert req.issubset(names), (req-set(names))
+    assert all('\\' not in n for n in names)
+print('CACHE_OK', out.stat().st_size, names)
+'@
+              $pyscript=Join-Path $env:GITHUB_WORKSPACE 'make_ios_cache.py'
+              Set-Content -Path $pyscript -Value $py -Encoding UTF8
+              python $pyscript $pack $cache $minimal | Tee-Object -FilePath $log -Append
+              if($LASTEXITCODE -ne 0){ throw 'iOS cache packaging failed' }
+
+              L ('RAW_CACHE_SHA256='+(Get-FileHash $cache -Algorithm SHA256).Hash)
+              L ('MINIMAL_SHA256='+(Get-FileHash $minimal -Algorithm SHA256).Hash)
               L 'RESULT=SUCCESS'
             } else {
               L 'RESULT=FAILED_NO_CONTENTS_JSON'
@@ -104,7 +123,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add artifacts
-          git commit -m 'Publish YUKIHA Adachi build result'
+          git commit -m 'Publish corrected YUKIHA V6 iOS cache'
           if($LASTEXITCODE -ne 0){ Write-Host 'No changes to commit' }
           git pull --rebase
           if($LASTEXITCODE -ne 0){ throw 'git pull --rebase failed' }
