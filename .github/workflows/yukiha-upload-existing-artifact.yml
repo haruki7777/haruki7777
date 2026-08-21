@@ -7,8 +7,6 @@ on:
 permissions:
   contents: write
 
-actions:
-
 jobs:
   export:
     if: startsWith(github.event.issue.title, '[YUKIHA GET]')
