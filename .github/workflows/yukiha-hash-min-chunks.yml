@@ -1,0 +1,35 @@
+name: Hash FIX2 minimal chunks
+
+on:
+  push:
+    paths:
+      - '.github/workflows/yukiha-hash-min-chunks.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  hash:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: powershell
+        run: |
+          $lines=@()
+          for($i=1; $i -le 6; $i++){
+            $p=(Join-Path $env:GITHUB_WORKSPACE ("artifacts\FIX2_MIN_B64_{0}.txt" -f $i))
+            $txt=(Get-Content $p -Raw).Trim()
+            $bytes=[Text.Encoding]::UTF8.GetBytes($txt)
+            $sha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))
+            $lines += ("{0} LEN={1} SHA256={2}" -f $i,$txt.Length,$sha)
+          }
+          Set-Content 'artifacts\FIX2_MIN_CHUNK_HASHES.txt' -Value ($lines -join "`n") -NoNewline
+      - shell: powershell
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/FIX2_MIN_CHUNK_HASHES.txt
+          git commit -m 'Hash FIX2 minimal chunks'
+          if($LASTEXITCODE -ne 0){ exit 0 }
+          git pull --rebase
+          git push
