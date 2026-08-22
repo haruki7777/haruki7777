@@ -1,0 +1,48 @@
+name: Rehost YUKIHA FIX2 to Young Gru
+
+on:
+  push:
+    paths:
+      - '.github/workflows/yukiha-fix2-rehost.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rehost:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rehost encrypted source payload
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $src=Join-Path $env:GITHUB_WORKSPACE 'artifacts\-DBZgXOP7oQ='
+          if(-not (Test-Path $src)){ throw 'encrypted source cache missing' }
+          $tmp=Join-Path $env:GITHUB_WORKSPACE 'fix2tmp'
+          if(Test-Path $tmp){ Remove-Item $tmp -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+          python -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" $src $tmp
+          $manifest='{"format_version":1,"header":{"name":"Young Gru","uuid":"670f5c25-c3a2-4a87-b48c-313b8ee35578","version":[1,0,8]},"modules":[{"type":"skin_pack","uuid":"e84a3684-808a-42e5-8a68-610c3cb8adb8","version":[1,0,8]}]}'
+          Set-Content -Path (Join-Path $tmp 'manifest.json') -Value $manifest -NoNewline
+          $out=Join-Path $env:GITHUB_WORKSPACE 'artifacts\YUKIHA_FIX2_vcnRp51gjXw='
+          if(Test-Path $out){ Remove-Item $out -Force }
+          python -c "import zipfile,sys,pathlib; s=pathlib.Path(sys.argv[1]); o=sys.argv[2]; z=zipfile.ZipFile(o,'w',zipfile.ZIP_DEFLATED); [z.write(p,p.relative_to(s).as_posix()) for p in sorted(s.rglob('*')) if p.is_file()]; z.close()" $tmp $out
+          $minimal=Join-Path $env:GITHUB_WORKSPACE 'artifacts\YUKIHA_FIX2_MINIMAL.zip'
+          if(Test-Path $minimal){ Remove-Item $minimal -Force }
+          python -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[2],'w',zipfile.ZIP_DEFLATED); z.write(sys.argv[1],'skin_packs/vcnRp51gjXw='); z.close()" $out $minimal
+          $info=Join-Path $env:GITHUB_WORKSPACE 'artifacts\YUKIHA_FIX2_REHOST_INFO.txt'
+          $sha=(Get-FileHash $out -Algorithm SHA256).Hash
+          $msha=(Get-FileHash $minimal -Algorithm SHA256).Hash
+          Set-Content -Path $info -Value ("SOURCE_CONTENTS_UUID=9a9fa850-0b5e-11ee-9a0f-a795af90f04f`nRUNTIME_MANIFEST_UUID=670f5c25-c3a2-4a87-b48c-313b8ee35578`nCACHE_SHA256=$sha`nMINIMAL_SHA256=$msha")
+      - name: Commit rehosted cache
+        shell: powershell
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/YUKIHA_FIX2_vcnRp51gjXw= artifacts/YUKIHA_FIX2_MINIMAL.zip artifacts/YUKIHA_FIX2_REHOST_INFO.txt
+          git commit -m 'Publish YUKIHA FIX2 Young Gru rehost'
+          if($LASTEXITCODE -ne 0){ Write-Host 'No changes to commit'; exit 0 }
+          git pull --rebase
+          git push
