@@ -1,0 +1,24 @@
+name: YUKIHA Fix1 Copy
+
+on:
+  push:
+    paths:
+      - 'yukiha/copy_fix1_trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy cache to simple filename
+        run: |
+          cp 'artifacts/fix1/vcnRp51gjXw=' 'artifacts/fix1/YUKIHA_FIX1_CACHE.zip'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/fix1/YUKIHA_FIX1_CACHE.zip
+          git commit -m 'Add YUKIHA Fix1 cache copy'
+          git pull --rebase
+          git push
