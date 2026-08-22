@@ -4,10 +4,11 @@ on:
   push:
     paths:
       - 'yukiha/fix1_source.zip.b64'
+      - 'yukiha/fix1_trigger.txt'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -53,22 +54,27 @@ jobs:
           Write-Host $stderr
           if($p.ExitCode -ne 0){ throw "encryptor failed: $($p.ExitCode)" }
 
-          $out=Join-Path $env:GITHUB_WORKSPACE 'out'
-          New-Item -ItemType Directory -Force -Path $out | Out-Null
-          $cache=Join-Path $out 'vcnRp51gjXw='
+          $dest=Join-Path $env:GITHUB_WORKSPACE 'artifacts\fix1'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          $cache=Join-Path $dest 'vcnRp51gjXw='
           $code="import sys,zipfile,pathlib; src=pathlib.Path(sys.argv[1]); out=pathlib.Path(sys.argv[2]); z=zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED); [z.write(p,p.relative_to(src).as_posix()) for p in sorted(src.rglob('*')) if p.is_file()]; z.close()"
           python -c $code $pack $cache
           if($LASTEXITCODE -ne 0){ throw 'cache packaging failed' }
 
-          $log=Join-Path $out 'BUILD_LOG.txt'
+          $log=Join-Path $dest 'BUILD_LOG.txt'
           "Result=SUCCESS" | Set-Content $log
           "Exit=$($p.ExitCode)" | Add-Content $log
           "Stdout=$stdout" | Add-Content $log
           "CacheSHA256=$((Get-FileHash $cache -Algorithm SHA256).Hash)" | Add-Content $log
           Get-ChildItem $pack | ForEach-Object { "FILE $($_.Name) $($_.Length)" | Add-Content $log }
 
-      - name: Upload encrypted cache
-        uses: actions/upload-artifact@v4
-        with:
-          name: YUKIHA_FIX1_ENCRYPTED
-          path: out/
+      - name: Publish encrypted cache to repository
+        shell: powershell
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/fix1
+          git commit -m 'Publish YUKIHA Fix1 encrypted cache'
+          if($LASTEXITCODE -ne 0){ Write-Host 'No changes to commit'; exit 0 }
+          git pull --rebase
+          git push
