@@ -1,0 +1,76 @@
+name: YUKIHA Fix1 Build
+
+on:
+  push:
+    paths:
+      - 'yukiha/fix1_source.zip.b64'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+actions:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decode source and encrypt Persona pack
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $b64=(Get-Content (Join-Path $env:GITHUB_WORKSPACE 'yukiha\fix1_source.zip.b64') -Raw).Trim()
+          $zip=Join-Path $env:GITHUB_WORKSPACE 'source.zip'
+          [IO.File]::WriteAllBytes($zip,[Convert]::FromBase64String($b64))
+          $src=Join-Path $env:GITHUB_WORKSPACE 'source'
+          Expand-Archive $zip -DestinationPath $src -Force
+          $pack=Join-Path $src 'adachi_rei'
+
+          $tool=Join-Path $env:GITHUB_WORKSPACE 'tool'
+          New-Item -ItemType Directory -Force -Path $tool | Out-Null
+          $base='https://raw.githubusercontent.com/NoahKuowithme/Minecraft-bedrock-skins-persona-/main/tool%20for%20mcpe%20persona/'
+          foreach($f in @('encryptor.exe','Encryptor.exe.config','LibMcCrypt.dll','Newtonsoft.Json.dll')){
+            Invoke-WebRequest -UseBasicParsing ($base+$f) -OutFile (Join-Path $tool $f)
+          }
+
+          $psi=New-Object System.Diagnostics.ProcessStartInfo
+          $psi.FileName=Join-Path $tool 'encryptor.exe'
+          $psi.WorkingDirectory=$tool
+          $psi.UseShellExecute=$false
+          $psi.RedirectStandardInput=$true
+          $psi.RedirectStandardOutput=$true
+          $psi.RedirectStandardError=$true
+          $p=New-Object System.Diagnostics.Process
+          $p.StartInfo=$psi
+          [void]$p.Start()
+          $p.StandardInput.WriteLine($pack)
+          $p.StandardInput.Close()
+          if(-not $p.WaitForExit(20000)){ try{$p.Kill()}catch{}; throw 'encryptor timeout' }
+          $stdout=$p.StandardOutput.ReadToEnd()
+          $stderr=$p.StandardError.ReadToEnd()
+          Write-Host $stdout
+          Write-Host $stderr
+          if($p.ExitCode -ne 0){ throw "encryptor failed: $($p.ExitCode)" }
+
+          $out=Join-Path $env:GITHUB_WORKSPACE 'out'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $cache=Join-Path $out 'vcnRp51gjXw='
+          $code="import sys,zipfile,pathlib; src=pathlib.Path(sys.argv[1]); out=pathlib.Path(sys.argv[2]); z=zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED); [z.write(p,p.relative_to(src).as_posix()) for p in sorted(src.rglob('*')) if p.is_file()]; z.close()"
+          python -c $code $pack $cache
+          if($LASTEXITCODE -ne 0){ throw 'cache packaging failed' }
+
+          $log=Join-Path $out 'BUILD_LOG.txt'
+          "Result=SUCCESS" | Set-Content $log
+          "Exit=$($p.ExitCode)" | Add-Content $log
+          "Stdout=$stdout" | Add-Content $log
+          "CacheSHA256=$((Get-FileHash $cache -Algorithm SHA256).Hash)" | Add-Content $log
+          Get-ChildItem $pack | ForEach-Object { "FILE $($_.Name) $($_.Length)" | Add-Content $log }
+
+      - name: Upload encrypted cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: YUKIHA_FIX1_ENCRYPTED
+          path: out/
