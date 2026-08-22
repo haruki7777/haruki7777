@@ -1,0 +1,31 @@
+name: Split FIX2 chunk6
+
+on:
+  push:
+    paths:
+      - '.github/workflows/yukiha-split-chunk6.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  split:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: powershell
+        run: |
+          $s=(Get-Content 'artifacts\FIX2_MIN_B64_6.txt' -Raw).Trim()
+          $mid=[int][Math]::Ceiling($s.Length/2)
+          Set-Content 'artifacts\FIX2_MIN_B64_6A.txt' -Value $s.Substring(0,$mid) -NoNewline
+          Set-Content 'artifacts\FIX2_MIN_B64_6B.txt' -Value $s.Substring($mid) -NoNewline
+          Set-Content 'artifacts\FIX2_MIN_B64_6LEN.txt' -Value ("LEN="+$s.Length+" A="+$mid+" B="+($s.Length-$mid)) -NoNewline
+      - shell: powershell
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/FIX2_MIN_B64_6A.txt artifacts/FIX2_MIN_B64_6B.txt artifacts/FIX2_MIN_B64_6LEN.txt
+          git commit -m 'Split FIX2 chunk6'
+          if($LASTEXITCODE -ne 0){ exit 0 }
+          git pull --rebase
+          git push
