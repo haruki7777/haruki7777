@@ -1,0 +1,41 @@
+name: Export YUKIHA FIX2 minimal chunks
+
+on:
+  push:
+    paths:
+      - '.github/workflows/yukiha-export-fix2-minimal.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Split minimal base64
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $src=Join-Path $env:GITHUB_WORKSPACE 'artifacts\YUKIHA_FIX2_MINIMAL.zip'
+          if(-not (Test-Path $src)){ throw 'minimal missing' }
+          $enc=[Convert]::ToBase64String([IO.File]::ReadAllBytes($src))
+          $chunk=2500
+          for($i=0; $i -lt 8; $i++){
+            $start=$i*$chunk
+            $len=[Math]::Min($chunk,[Math]::Max(0,$enc.Length-$start))
+            $part=if($len -gt 0){$enc.Substring($start,$len)}else{''}
+            Set-Content -Path (Join-Path $env:GITHUB_WORKSPACE ("artifacts\FIX2_MIN_B64_{0}.txt" -f ($i+1))) -Value $part -NoNewline
+          }
+          Set-Content -Path (Join-Path $env:GITHUB_WORKSPACE 'artifacts\FIX2_MIN_INFO.txt') -Value ("LEN="+$enc.Length+"`nSHA256="+(Get-FileHash $src -Algorithm SHA256).Hash)
+      - name: Commit chunks
+        shell: powershell
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/FIX2_MIN_B64_*.txt artifacts/FIX2_MIN_INFO.txt
+          git commit -m 'Export YUKIHA FIX2 minimal chunks'
+          if($LASTEXITCODE -ne 0){ Write-Host 'No changes to commit'; exit 0 }
+          git pull --rebase
+          git push
