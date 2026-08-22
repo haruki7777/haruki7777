@@ -1,0 +1,41 @@
+name: Export YUKIHA FIX2 cache chunks
+
+on:
+  push:
+    paths:
+      - '.github/workflows/yukiha-export-fix2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Split cache base64
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $cache=Join-Path $env:GITHUB_WORKSPACE 'artifacts\-DBZgXOP7oQ='
+          if(-not (Test-Path $cache)){ throw 'cache missing' }
+          $enc=[Convert]::ToBase64String([IO.File]::ReadAllBytes($cache))
+          $chunk=2500
+          for($i=0; $i -lt 8; $i++){
+            $start=$i*$chunk
+            $len=[Math]::Min($chunk,[Math]::Max(0,$enc.Length-$start))
+            $part=if($len -gt 0){$enc.Substring($start,$len)}else{''}
+            Set-Content -Path (Join-Path $env:GITHUB_WORKSPACE ("artifacts\FIX2_CACHE_B64_{0}.txt" -f ($i+1))) -Value $part -NoNewline
+          }
+          Set-Content -Path (Join-Path $env:GITHUB_WORKSPACE 'artifacts\FIX2_CACHE_INFO.txt') -Value ("LEN="+$enc.Length+"`nSHA256="+(Get-FileHash $cache -Algorithm SHA256).Hash)
+      - name: Commit chunks
+        shell: powershell
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/FIX2_CACHE_B64_*.txt artifacts/FIX2_CACHE_INFO.txt
+          git commit -m 'Export YUKIHA FIX2 cache chunks'
+          if($LASTEXITCODE -ne 0){ Write-Host 'No changes to commit'; exit 0 }
+          git pull --rebase
+          git push
