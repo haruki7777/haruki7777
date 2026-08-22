@@ -1,0 +1,36 @@
+name: YUKIHA Fix1 Export
+
+on:
+  push:
+    paths:
+      - 'yukiha/export_fix1_trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export binary cache as base64 chunks
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64
+          p=Path('artifacts/fix1/vcnRp51gjXw=')
+          s=base64.b64encode(p.read_bytes()).decode('ascii')
+          out=Path('artifacts/fix1/base64')
+          out.mkdir(parents=True,exist_ok=True)
+          chunk=1800
+          for i in range(0,len(s),chunk):
+              (out/f'part_{i//chunk+1:02d}.txt').write_text(s[i:i+chunk])
+          (out/'meta.txt').write_text(f'parts={(len(s)+chunk-1)//chunk}\nlength={len(s)}\n')
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/fix1/base64
+          git commit -m 'Export YUKIHA Fix1 cache base64 chunks'
+          git pull --rebase
+          git push
