@@ -83,7 +83,7 @@ jobs:
 
             $enc=[Convert]::ToBase64String([IO.File]::ReadAllBytes($cache))
             $chunk=2500
-            for($i=0; $i -lt 3; $i++){
+            for($i=0; $i -lt 4; $i++){
               $start=$i*$chunk
               $len=[Math]::Min($chunk,[Math]::Max(0,$enc.Length-$start))
               $part=if($len -gt 0){$enc.Substring($start,$len)}else{''}
