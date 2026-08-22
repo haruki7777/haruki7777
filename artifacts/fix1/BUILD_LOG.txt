@@ -1,0 +1,14 @@
+Result=SUCCESS
+Exit=0
+Stdout=-- McEncryptor --
+Path to pack file: 
+uuid: 670f5c25-c3a2-4a87-b48c-313b8ee35578
+
+CacheSHA256=24543241A6DD42622F47D2BA8FE0A9A4EC62B658E70B97FD9AF9F8E216DCC445
+FILE texts 1
+FILE contents.json 656
+FILE geometry.json 8864
+FILE manifest.json 211
+FILE signatures.json 80
+FILE skins.json 208
+FILE skin_0.png 752
